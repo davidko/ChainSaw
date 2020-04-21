@@ -1,5 +1,6 @@
 ChainSaw = {}
 
+ChainSaw.initialized = false
 ChainSaw.state = false -- Not shooting
 ChainSaw.enabled = false
 
@@ -142,3 +143,12 @@ RegisterEvent( function()
         ChainSaw:enable()
     end
 end, 'LEAVING_STATION')
+
+RegisterEvent( function()
+    if not ChainSaw.initialized then
+        -- Load the alias config file
+        print('Loading chainsaw config file...')
+        gkinterface.GKProcessCommand('load chainsaw.cfg')
+        ChainSaw.initialized = true
+    end
+end, 'PLAYER_ENTERED_GAME')

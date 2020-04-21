@@ -1,26 +1,26 @@
-XcChain = {}
+ChainSaw = {}
 
-XcChain.state = false -- Not shooting
-XcChain.enabled = false
+ChainSaw.state = false -- Not shooting
+ChainSaw.enabled = false
 
-XcChain.count = 1
-XcChain.period = 1 -- seconds
-XcChain.ports = {} -- List of ports to chainfire
+ChainSaw.count = 1
+ChainSaw.period = 1 -- seconds
+ChainSaw.ports = {} -- List of ports to chainfire
 
-XcChain._firingPorts = {}
+ChainSaw._firingPorts = {}
 
-XcChain._stopTimers = {}
-XcChain._timers = {}
+ChainSaw._stopTimers = {}
+ChainSaw._timers = {}
 
-XcChain._userWeaponGroups = {}
+ChainSaw._userWeaponGroups = {}
 
-XcChain._safetyFactor = 1.2 -- Increase the delay just a little to ensure
+ChainSaw._safetyFactor = 1.2 -- Increase the delay just a little to ensure
                              -- every weapon group fires
 
-function XcChain:enable()
+function ChainSaw:enable()
     -- We need to get a list of all ports with energy weapons, as well as the
     -- weapon with the highest period of fire
-    XcChain.ports = {}
+    ChainSaw.ports = {}
     local maxDelay = 0
     for i=1,6 do
         local itemId = GetActiveShipItemIDAtPort(i)
@@ -31,8 +31,8 @@ function XcChain:enable()
             if string.find(desc, "Capacity") == nil then
                 local delay_str = string.match(desc, "Delay:([%d .]+)s")
                 if delay_str ~= nil then
-                    print('Adding port '..i..' with item desc: '..desc)
-                    table.insert(XcChain.ports, i)
+                    -- print('Adding port '..i..' with item desc: '..desc)
+                    table.insert(ChainSaw.ports, i)
                     local delay = tonumber(delay_str)
                     if delay > maxDelay then
                         maxDelay = delay
@@ -41,10 +41,10 @@ function XcChain:enable()
             end
         end
     end
-    if table.getn(XcChain.ports) > 0 then
-        XcChain.period = maxDelay / table.getn(XcChain.ports)
+    if table.getn(ChainSaw.ports) > 0 then
+        ChainSaw.period = maxDelay / table.getn(ChainSaw.ports)
     else
-        XcChain.period = 1
+        ChainSaw.period = 1
     end
 
     -- Save the user's weapon groups
@@ -54,94 +54,91 @@ function XcChain:enable()
         for k,v in pairs(group) do
             if v then
                 table.insert(ports, k)
-                print('Save port '..k..' to group '..i)
             end
         end
-        XcChain._userWeaponGroups[i] = ports
-        console_print('Group: '..i)
-        printtable(ports)
+        ChainSaw._userWeaponGroups[i] = ports
     end
         
     -- Configure the new weapon groups now
-    for i=1,table.getn(XcChain.ports) do
-        ConfigureWeaponGroup(i-1, {XcChain.ports[i]})
+    for i=1,table.getn(ChainSaw.ports) do
+        ConfigureWeaponGroup(i-1, {ChainSaw.ports[i]})
     end
 end
 
-function XcChain:disable()
+function ChainSaw:disable()
     -- Configure the user's old weapon groups
     for i=0,17 do
-        ConfigureWeaponGroup(i, XcChain._userWeaponGroups[i])
+        ConfigureWeaponGroup(i, ChainSaw._userWeaponGroups[i])
     end
     gkinterface.GKProcessCommand('Weapon1')
 end
 
 timer = Timer()
 
-function XcChain_shoot()
-    if table.getn(XcChain.ports) == 0 then
+function ChainSaw_shoot()
+    if table.getn(ChainSaw.ports) == 0 then
         return
     end
-    local index = (XcChain.count % table.getn(XcChain.ports)) + 1
+    local index = (ChainSaw.count % table.getn(ChainSaw.ports)) + 1
     gkinterface.GKProcessCommand('Weapon'..index)
-    XcChain.count = XcChain.count + 1
-    if XcChain.state then
-        timer:SetTimeout(XcChain.period*1000*XcChain._safetyFactor, XcChain_shoot)
+    ChainSaw.count = ChainSaw.count + 1
+    if ChainSaw.state then
+        timer:SetTimeout(ChainSaw.period*1000*ChainSaw._safetyFactor, ChainSaw_shoot)
     end
 end
 
-RegisterUserCommand('xcchain.toggle', function()
-    XcChain.enabled = not XcChain.enabled
-    if XcChain.enabled then
+RegisterUserCommand('chainsaw.toggle', function()
+    ChainSaw.enabled = not ChainSaw.enabled
+    if ChainSaw.enabled then
         print('Chain fire enabled.')
-        XcChain:enable()
+        ChainSaw:enable()
     else
         print('Chain fire disabled.')
-        XcChain:disable()
+        ChainSaw:disable()
     end
 end)
 
-RegisterUserCommand('xcchain.enable', function()
-    if not XcChain.enabled then
-        XcChain:enable()
-        XcChain.enabled = true
+RegisterUserCommand('chainsaw.enable', function()
+    if not ChainSaw.enabled then
+        ChainSaw:enable()
+        ChainSaw.enabled = true
     end
 end)
 
-RegisterUserCommand('xcchain.disable', function()
-    if XcChain.enabled then
-        XcChain:disable()
-        XcChain.enabled = false
+RegisterUserCommand('chainsaw.disable', function()
+    if ChainSaw.enabled then
+        ChainSaw:disable()
+        ChainSaw.enabled = false
     end
 end)
 
-RegisterUserCommand('xcchain.shoot', function(_, args) 
+RegisterUserCommand('chainsaw.shoot', function(_, args) 
     if args[1] == "on" then
-        if not XcChain.enabled then
+        if not ChainSaw.enabled then
             gkinterface.GKProcessCommand('+Shoot2')
             return
         end
-        if(XcChain.state) then
+        if(ChainSaw.state) then
             return
         end
-        XcChain.state = true
+        ChainSaw.state = true
         gkinterface.GKProcessCommand('+Shoot2')
-        timer:SetTimeout(XcChain.period*1000*XcChain._safetyFactor, XcChain_shoot)
+        timer:SetTimeout(ChainSaw.period*1000*ChainSaw._safetyFactor, ChainSaw_shoot)
     else
-        if not XcChain.enabled then
+        if not ChainSaw.enabled then
             gkinterface.GKProcessCommand('+Shoot2 0')
             return
         end
         gkinterface.GKProcessCommand('+Shoot2 0')
         gkinterface.GKProcessCommand('Weapon1')
-        XcChain.state = false 
-        XcChain.count = 1
+        ChainSaw.state = false 
+        ChainSaw.count = 1
     end
 end)
 
 -- If we are enabled, re-enable every time we leave a station in case our loadout changed
 RegisterEvent( function()
-    if XcChain.enabled then
-        XcChain:enable()
+    if ChainSaw.enabled then
+        ChainSaw:enable()
     end
 end, 'LEAVING_STATION')

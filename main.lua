@@ -3,7 +3,7 @@ XcChain = {}
 XcChain.state = false -- Not shooting
 XcChain.enabled = false
 
-XcChain.count = 0
+XcChain.count = 1
 XcChain.period = 1 -- seconds
 XcChain.ports = {} -- List of ports to chainfire
 
@@ -11,6 +11,8 @@ XcChain._firingPorts = {}
 
 XcChain._stopTimers = {}
 XcChain._timers = {}
+
+XcChain._userWeaponGroups = {}
 
 function XcChain:enable()
     -- We need to get a list of all ports with energy weapons, as well as the
@@ -34,41 +36,33 @@ function XcChain:enable()
             end
         end
     end
-    print('Max delay: '..maxDelay)
     if table.getn(XcChain.ports) > 0 then
         XcChain.period = maxDelay / table.getn(XcChain.ports)
     else
         XcChain.period = 1
     end
-    for i=1, table.getn(XcChain.ports) do
-        table.insert(XcChain._timers, Timer())
-        table.insert(XcChain._stopTimers, Timer())
+
+
+    -- Configure the weapon groups now
+    for i=1,table.getn(XcChain.ports) do
+        ConfigureWeaponGroup(i-1, {XcChain.ports[i]})
     end
+
 end
 
--- timer = Timer()
+timer = Timer()
 
 function XcChain_shoot()
     if table.getn(XcChain.ports) == 0 then
         return
     end
-    local index = XcChain.count + 2
+    local index = (XcChain.count % table.getn(XcChain.ports)) + 1
     print('index: '..index)
-    local port = XcChain.ports[index]
-    if port == nil then
-        return
-    end
-    print('Enable ports: '..port)
-    table.insert(XcChain._firingPorts, port)
-    --ConfigureWeaponGroup(0, XcChain._firingPorts)
-    print('Add weapon to group: '..XcChain.count)
-    ConfigureWeaponGroup(XcChain.count, {port}, function()
-        print('Done configuring weapon group.')
-    end)
-    gkinterface.GKProcessCommand('+Shoot2')
+    print('Enable weapon group:'..index)
+    gkinterface.GKProcessCommand('Weapon'..index)
     XcChain.count = XcChain.count + 1
     if XcChain.state then
-        -- timer:SetTimeout(XcChain.period*1000, XcChain_shoot)
+        timer:SetTimeout(XcChain.period*1000*1.1, XcChain_shoot)
     end
 end
 
@@ -76,7 +70,6 @@ RegisterUserCommand('xcchain.toggle', function()
     XcChain.enabled = not XcChain.enabled
     if XcChain.enabled then
         print('Chain fire enabled.')
-        ConfigureWeaponGroup(0, {})
         XcChain:enable()
     else
         print('Chain fire disabled.')
@@ -90,29 +83,15 @@ RegisterUserCommand('xcchain.shoot', function(_, args)
         end
         print('Enable fire')
         XcChain.state = true
-        -- gkinterface.GKProcessCommand('+Shoot2')
-        local period = XcChain.period*1000
-        if period < 0 then
-            period = 1
-        end
-        XcChain_shoot()
-        for i=1, table.getn(XcChain.ports)-1 do
-            --XcChain._stopTimers[i]:SetTimeout(period*i-(period/2), function()
-              --  gkinterface.GKProcessCommand('+Shoot2 0')
-            --end)
-            XcChain._timers[i]:SetTimeout(period*i, XcChain_shoot)
-        end
+        gkinterface.GKProcessCommand('+Shoot2')
+        timer:SetTimeout(XcChain.period*1000*1.1, XcChain_shoot)
+        -- XcChain_shoot()
     else
         print('Disable fire')
         gkinterface.GKProcessCommand('+Shoot2 0')
-        XcChain._firingPorts = {}
-        local port = XcChain.ports[1]
-        if port ~= nil then
-            XcChain._firingPorts = {port}
-            ConfigureWeaponGroup(0, {port})
-        end
+        gkinterface.GKProcessCommand('Weapon1')
         XcChain.state = false 
-        XcChain.count = 0
+        XcChain.count = 1
         -- timer:Kill()
     end
 end)

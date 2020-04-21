@@ -9,6 +9,9 @@ XcChain.ports = {} -- List of ports to chainfire
 
 XcChain._firingPorts = {}
 
+XcChain._stopTimers = {}
+XcChain._timers = {}
+
 function XcChain:enable()
     -- We need to get a list of all ports with energy weapons, as well as the
     -- weapon with the highest period of fire
@@ -37,9 +40,13 @@ function XcChain:enable()
     else
         XcChain.period = 1
     end
+    for i=1, table.getn(XcChain.ports) do
+        table.insert(XcChain._timers, Timer())
+        table.insert(XcChain._stopTimers, Timer())
+    end
 end
 
-timer = Timer()
+-- timer = Timer()
 
 function XcChain_shoot()
     if table.getn(XcChain.ports) == 0 then
@@ -53,11 +60,15 @@ function XcChain_shoot()
     end
     print('Enable ports: '..port)
     table.insert(XcChain._firingPorts, port)
-    ConfigureWeaponGroup(0, XcChain._firingPorts)
+    --ConfigureWeaponGroup(0, XcChain._firingPorts)
+    print('Add weapon to group: '..XcChain.count)
+    ConfigureWeaponGroup(XcChain.count, {port}, function()
+        print('Done configuring weapon group.')
+    end)
     gkinterface.GKProcessCommand('+Shoot2')
     XcChain.count = XcChain.count + 1
     if XcChain.state then
-        timer:SetTimeout(XcChain.period*1000, XcChain_shoot)
+        -- timer:SetTimeout(XcChain.period*1000, XcChain_shoot)
     end
 end
 
@@ -79,12 +90,18 @@ RegisterUserCommand('xcchain.shoot', function(_, args)
         end
         print('Enable fire')
         XcChain.state = true
-        gkinterface.GKProcessCommand('+Shoot2')
-        local period = XcChain.period*1000 - 200
+        -- gkinterface.GKProcessCommand('+Shoot2')
+        local period = XcChain.period*1000
         if period < 0 then
             period = 1
         end
-        timer:SetTimeout(period, XcChain_shoot)
+        XcChain_shoot()
+        for i=1, table.getn(XcChain.ports)-1 do
+            --XcChain._stopTimers[i]:SetTimeout(period*i-(period/2), function()
+              --  gkinterface.GKProcessCommand('+Shoot2 0')
+            --end)
+            XcChain._timers[i]:SetTimeout(period*i, XcChain_shoot)
+        end
     else
         print('Disable fire')
         gkinterface.GKProcessCommand('+Shoot2 0')
